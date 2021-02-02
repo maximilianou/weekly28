@@ -4,6 +4,8 @@
 **Reference:**
 https://www.youtube.com/watch?v=X48VuDVv0do
 
+---
+## Step 1 - Concepts
 ### Intro to k8s: 
 - k8s Architecture
 - k8s Components
@@ -74,6 +76,8 @@ Master Nodes:
 - Controller manager ( detect cluster state changes )
 - etcd ( key, value, cluster brain )
 
+---
+## Step 2 - Instalation
 ### Install Minikube in Local Machine ( linux )
 https://minikube.sigs.k8s.io/docs/start/
 
@@ -127,6 +131,9 @@ $ minikube dashboard
 Opening in existing browser session.
 ```
 
+---
+## Step 3 - Command Line ( like docker )
+### Command Line Interface
 ```
 $ minikube kubectl get nodes
 NAME       STATUS   ROLES                  AGE   VERSION
@@ -220,7 +227,7 @@ Use "kubectl <command> --help" for more information about a given command.
 Use "kubectl options" for a list of global command-line options (applies to all commands).
 ```
 
-### Basic Usage kubectl
+### Basic Usage kubectl ( docker like )
 
 ```
 $ minikube kubectl get nodes
@@ -308,6 +315,8 @@ Use "kubectl <command> --help" for more information about a given command.
 Use "kubectl options" for a list of global command-line options (applies to all commands).
 ```
 
+---
+## Step 4 - Deployment Create
 ```
 $ minikube kubectl -- create deployment nginx-depl --image=nginx
 deployment.apps/nginx-depl created
@@ -331,6 +340,8 @@ NAME                    DESIRED   CURRENT   READY   AGE
 nginx-depl-5c8bf76b5b   1         1         1       19h
 ```
 
+---
+## Step 5 - Deployment Edit
 - Deployment Template Descriptor yml Edit
 ```
 $ minikube kubectl -- edit deployment nginx-depl
@@ -356,6 +367,7 @@ nginx-depl-5c8bf76b5b   1         1         1       19h
 nginx-depl-7fc44fc5d4   0         0         0       2m49s
 ```
 
+## Step  - Log & Debug
 ```
 $ minikube kubectl -- logs nginx-depl-5c8bf76b5b-2c5t8
 /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
@@ -477,5 +489,166 @@ Events:
 
 ```
 
+---
+## Step 6 - Check Inside Pod ( bin/bash inside container )
+- Check Exec inside Pod
+```
+$ minikube kubectl -- get pod
+NAME                          READY   STATUS    RESTARTS   AGE
+mongo-depl-5fd6b7d4b4-bjb2z   1/1     Running   0          15m
+nginx-depl-5c8bf76b5b-2c5t8   1/1     Running   0          25m
 ```
 ```
+$ minikube kubectl -- exec -it mongo-depl-5fd6b7d4b4-bjb2z -- bin/bash
+root@mongo-depl-5fd6b7d4b4-bjb2z:/# 
+```
+
+- View Deployment
+```
+$ minikube kubectl -- get deployment
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+mongo-depl   1/1     1            1           19m
+nginx-depl   1/1     1            1           20h
+```
+
+- View Pod
+```
+$ minikube kubectl -- get pod
+NAME                          READY   STATUS    RESTARTS   AGE
+mongo-depl-5fd6b7d4b4-bjb2z   1/1     Running   0          20m
+nginx-depl-5c8bf76b5b-2c5t8   1/1     Running   0          29m
+```
+
+- View Replicaset
+```
+$ minikube kubectl -- get replicaset
+NAME                    DESIRED   CURRENT   READY   AGE
+mongo-depl-5fd6b7d4b4   1         1         1       20m
+nginx-depl-5c8bf76b5b   1         1         1       20h
+nginx-depl-7fc44fc5d4   0         0         0       31m
+```
+
+## Step 7 - Deployment Delete
+- Delete Deployment
+```
+$ minikube kubectl -- delete deployment mongo-depl
+deployment.apps "mongo-depl" deleted
+```
+
+```
+$ minikube kubectl -- delete deployment nginx-depl
+deployment.apps "nginx-depl" deleted
+```
+
+```
+$ minikube kubectl -- get pod
+No resources found in default namespace.
+```
+
+```
+$ minikube kubectl -- get replicaset
+No resources found in default namespace.
+```
+
+---
+## Step 8 - Deployment Descriptor deployment.yml
+### From Command Line to File Descriptor ( docker-compose.yml like )
+
+```
+$ minikube kubectl -- apply
+error: must specify one of -f and -k
+```
+### Deployment Descriptor yml
+```yml
+$ cat nginx-deployment.yml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec: # deployment specification 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec: # pod specification
+      containers:
+      - name: nginx
+        image: nginx:1.16
+        ports:
+        - containerPort: 80 
+```
+
+```
+$ minikube kubectl -- apply -f nginx-deployment.yml 
+deployment.apps/nginx-deployment created
+```
+
+```
+$ minikube kubectl -- get pod
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-644599b9c9-wjspx   1/1     Running   0          72s
+
+$ minikube kubectl -- get deployment
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   1/1     1            1           81s
+
+$ minikube kubectl -- get replicaset
+NAME                          DESIRED   CURRENT   READY   AGE
+nginx-deployment-644599b9c9   1         1         1       90s
+```
+
+- Change nginx-deployment.yml and Apply Changes
+```
+cat nginx-deployment.yml 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec: # deployment specification 
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec: # pod specification
+      containers:
+      - name: nginx
+        image: nginx:1.16
+        ports:
+        - containerPort: 80
+```
+
+```
+$ minikube kubectl -- apply -f nginx-deployment.yml 
+deployment.apps/nginx-deployment configured
+```
+
+```
+$ minikube kubectl -- get deployment
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   2/2     2            2           3m53s
+
+$ minikube kubectl -- get pod
+NAME                                READY   STATUS    RESTARTS   AGE
+nginx-deployment-644599b9c9-687g4   1/1     Running   0          39s
+nginx-deployment-644599b9c9-wjspx   1/1     Running   0          4m1s
+
+$ minikube kubectl -- get replicaset
+NAME                          DESIRED   CURRENT   READY   AGE
+nginx-deployment-644599b9c9   2         2         2       4m10s
+```
+---
+## Step 9
+
+### 
