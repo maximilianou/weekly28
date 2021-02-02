@@ -367,7 +367,8 @@ nginx-depl-5c8bf76b5b   1         1         1       19h
 nginx-depl-7fc44fc5d4   0         0         0       2m49s
 ```
 
-## Step  - Log & Debug
+---
+## Step 6 - Log & Debug
 ```
 $ minikube kubectl -- logs nginx-depl-5c8bf76b5b-2c5t8
 /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
@@ -490,7 +491,7 @@ Events:
 ```
 
 ---
-## Step 6 - Check Inside Pod ( bin/bash inside container )
+## Step 7 - Check Inside Pod ( bin/bash inside container )
 - Check Exec inside Pod
 ```
 $ minikube kubectl -- get pod
@@ -528,7 +529,7 @@ nginx-depl-5c8bf76b5b   1         1         1       20h
 nginx-depl-7fc44fc5d4   0         0         0       31m
 ```
 
-## Step 7 - Deployment Delete
+## Step 8 - Deployment Delete
 - Delete Deployment
 ```
 $ minikube kubectl -- delete deployment mongo-depl
@@ -551,7 +552,7 @@ No resources found in default namespace.
 ```
 
 ---
-## Step 8 - Deployment Descriptor deployment.yml
+## Step 9 - Deployment Descriptor deployment.yml
 ### From Command Line to File Descriptor ( docker-compose.yml like )
 
 ```
@@ -604,7 +605,7 @@ nginx-deployment-644599b9c9   1         1         1       90s
 ```
 
 - Change nginx-deployment.yml and Apply Changes
-```
+```yml
 cat nginx-deployment.yml 
 apiVersion: apps/v1
 kind: Deployment
@@ -649,6 +650,370 @@ NAME                          DESIRED   CURRENT   READY   AGE
 nginx-deployment-644599b9c9   2         2         2       4m10s
 ```
 ---
-## Step 9
+## Step 10
 
-### 
+### YML Configuration File Kubernetes
+
+- metadata - in the file.yml
+- spec - specification - in the file.yml
+- status - etcd managment status
+
+
+**Layers of Abstraction**
+- Deployment manages a .. 
+- Replicaset manages a .. 
+- Pod is an abstraction of ..
+- Container
+
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels: ..
+spec:
+  replicas: 2
+  selector: ..
+  template: 
+    metadata:        # metadata of a Pod 
+      labels:
+        app: nginx
+    spec:            # bluepring for a Pod
+      containers:    # The Containers
+      - name: nginx
+        image: nginx:1.16
+        ports:
+        - containersPort: 8080
+```
+
+### Connectors - Labels & Selectors
+
+- Deployment
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: nginx-deployment
+  labels: 
+    app: nginx
+spec:
+  replicas: 2
+  selector: 
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec: ..
+```
+
+- Service
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec: 
+  selector:
+    app: nginx
+  ports: ..
+```
+
+- Connecting Deployment to Pod
+
+```yml
+  labels: 
+    app: nginx
+```
+
+- Label is matched by the Selector
+```yml
+  selector:
+    matchLabels:
+      app: nginx
+```
+- Connecting Services to Deployments
+- Pods belong to that Service
+
+---
+## Step 11 - Minimum Configuration of Deployment and Service
+
+- nginx-deployment.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec: # deployment specification 
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec: # pod specification
+      containers:
+      - name: nginx
+        image: nginx:1.16
+        ports:
+        - containerPort: 8080
+```
+- nginx-service.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+```
+
+- Creating Deployment and Services Instances
+```
+$ minikube kubectl -- apply -f nginx-deployment.yml 
+deployment.apps/nginx-deployment configured
+
+$ minikube kubectl -- apply -f nginx-service.yml 
+service/nginx-service created
+```
+- Check Status
+```
+$ minikube kubectl -- get pod
+NAME                               READY   STATUS    RESTARTS   AGE
+nginx-deployment-f4b7bbcbc-p2jcc   1/1     Running   0          75s
+nginx-deployment-f4b7bbcbc-qwf62   1/1     Running   0          72s
+
+$ minikube kubectl -- get service
+NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+kubernetes      ClusterIP   10.96.0.1       <none>        443/TCP   22h
+nginx-service   ClusterIP   10.96.108.176   <none>        80/TCP    75s
+```
+
+- Inspect service and port
+```
+$  minikube kubectl -- describe service nginx-service
+Name:              nginx-service
+Namespace:         default
+Labels:            <none>
+Annotations:       <none>
+Selector:          app=nginx
+Type:              ClusterIP
+IP Families:       <none>
+IP:                10.96.108.176
+IPs:               10.96.108.176
+Port:              <unset>  80/TCP
+TargetPort:        8080/TCP
+Endpoints:         172.17.0.7:8080,172.17.0.8:8080
+Session Affinity:  None
+Events:            <none>
+```
+- Pod More information -o wide
+```
+$  minikube kubectl -- get pod -o wide
+NAME                               READY   STATUS    RESTARTS   AGE     IP           NODE       NOMINATED NODE   READINESS GATES
+nginx-deployment-f4b7bbcbc-p2jcc   1/1     Running   0          5m16s   172.17.0.7   minikube   <none>           <none>
+nginx-deployment-f4b7bbcbc-qwf62   1/1     Running   0          5m13s   172.17.0.8   minikube   <none>           <none>
+```
+
+### etcd Statuc Inspector
+- Status Check ( etcd Status )
+```yml
+$ minikube kubectl -- get deployment nginx-deployment -o yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"nginx"},"name":"nginx-deployment","namespace":"default"},"spec":{"replicas":2,"selector":{"matchLabels":{"app":"nginx"}},"template":{"metadata":{"labels":{"app":"nginx"}},"spec":{"containers":[{"image":"nginx:1.16","name":"nginx","ports":[{"containerPort":8080}]}]}}}}
+  creationTimestamp: "2021-02-02T17:35:30Z"
+  generation: 3
+  labels:
+    app: nginx
+  managedFields:
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:labels:
+          .: {}
+          f:app: {}
+      f:spec:
+        f:progressDeadlineSeconds: {}
+        f:replicas: {}
+        f:revisionHistoryLimit: {}
+        f:selector: {}
+        f:strategy:
+          f:rollingUpdate:
+            .: {}
+            f:maxSurge: {}
+            f:maxUnavailable: {}
+          f:type: {}
+        f:template:
+          f:metadata:
+            f:labels:
+              .: {}
+              f:app: {}
+          f:spec:
+            f:containers:
+              k:{"name":"nginx"}:
+                .: {}
+                f:image: {}
+                f:imagePullPolicy: {}
+                f:name: {}
+                f:ports:
+                  .: {}
+                  k:{"containerPort":8080,"protocol":"TCP"}:
+                    .: {}
+                    f:containerPort: {}
+                    f:protocol: {}
+                f:resources: {}
+                f:terminationMessagePath: {}
+                f:terminationMessagePolicy: {}
+            f:dnsPolicy: {}
+            f:restartPolicy: {}
+            f:schedulerName: {}
+            f:securityContext: {}
+            f:terminationGracePeriodSeconds: {}
+    manager: kubectl-client-side-apply
+    operation: Update
+    time: "2021-02-02T18:48:34Z"
+  - apiVersion: apps/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:deployment.kubernetes.io/revision: {}
+      f:status:
+        f:availableReplicas: {}
+        f:conditions:
+          .: {}
+          k:{"type":"Available"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Progressing"}:
+            .: {}
+            f:lastTransitionTime: {}
+            f:lastUpdateTime: {}
+            f:message: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:observedGeneration: {}
+        f:readyReplicas: {}
+        f:replicas: {}
+        f:updatedReplicas: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2021-02-02T18:48:39Z"
+  name: nginx-deployment
+  namespace: default
+  resourceVersion: "36562"
+  uid: a0b14139-1b82-4b56-9bd1-c6f4c04ed19f
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:1.16
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 2
+  conditions:
+  - lastTransitionTime: "2021-02-02T17:38:54Z"
+    lastUpdateTime: "2021-02-02T17:38:54Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2021-02-02T17:35:30Z"
+    lastUpdateTime: "2021-02-02T18:48:39Z"
+    message: ReplicaSet "nginx-deployment-f4b7bbcbc" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 3
+  readyReplicas: 2
+  replicas: 2
+  updatedReplicas: 2
+```
+
+- Status in a nginx-deployent-result.yaml
+```
+$ minikube kubectl -- get deployment nginx-deployment -o yaml > nginx-deployment-result.yml
+```
+
+- Delete Deployment Instance
+```
+$ minikube kubectl -- delete  -f nginx-deployment.yml 
+deployment.apps "nginx-deployment" deleted
+
+$ minikube kubectl -- delete -f nginx-service.yml 
+service "nginx-service" deleted
+```
+
+---
+## Step 12 - Deploy Front and Back in Kubernetes, MongoDB-Express - MongoDB 
+
+- Browser.open( http://localhost:8080/)
+- External URL to..
+- Front MongoDB-Express
+- Internal ConfigMap URL to..
+- Back MongoDB
+
+### Here we have the initial cluster kubernet service
+```
+$ minikube kubectl -- get all
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   23h
+```
+
+- Create the mongodb pod
+```
+$ touch mongo-deployment.yml
+```
+
