@@ -1252,5 +1252,312 @@ Events:
 
 ---
 ## Step 14 - Create MongoDB Internal Service
+### One file all configuration, o many files
+- mongo.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username 
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password 
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: mongodb-service
+spec:
+  selector: 
+    app: mongodb
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+```
 
+- Create the service now
+```
+$ kubectl apply -f mongo.yml 
+deployment.apps/mongodb-deployment unchanged
+service/mongodb-service created
+```
+- Check service created
+```
+$ kubectl get service
+NAME              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
+kubernetes        ClusterIP   10.96.0.1      <none>        443/TCP     37h
+mongodb-service   ClusterIP   10.96.164.91   <none>        27017/TCP   2m58s
+```
+
+- Describe Service
+```
+$ kubectl describe service mongodb-service
+Name:              mongodb-service
+Namespace:         default
+Labels:            <none>
+Annotations:       <none>
+Selector:          app=mongodb
+Type:              ClusterIP
+IP Families:       <none>
+IP:                10.96.164.91
+IPs:               10.96.164.91
+Port:              <unset>  27017/TCP
+TargetPort:        27017/TCP
+Endpoints:         172.17.0.5:27017
+Session Affinity:  None
+Events:            <none>
+```
+
+- Check ip address of the pod
+```
+$ kubectl get pod -o wide
+NAME                                 READY   STATUS    RESTARTS   AGE    IP           NODE       NOMINATED NODE   READINESS GATES
+mongodb-deployment-8f6675bc5-mgcdd   1/1     Running   0          165m   172.17.0.5   minikube   <none>           <none>
+```
+
+- Look all the components of an application
+```
+$ kubectl get all | grep mongodb
+pod/mongodb-deployment-8f6675bc5-mgcdd   1/1     Running   0          167m
+service/mongodb-service   ClusterIP   10.96.164.91   <none>        27017/TCP   8m11s
+deployment.apps/mongodb-deployment   1/1     1            1           167m
+replicaset.apps/mongodb-deployment-8f6675bc5   1         1         1       167m
+```
+
+---
+## Step 15 - Create Mongo Express Service
+https://registry.hub.docker.com/_/mongo-express
+
+- Create mongo-express.yml incomplete, waiting for the ConfigMap
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  labels:
+    app: mongo-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      containers:
+      - name: mongo-express
+        image: mongo-express
+        ports:
+          - containerPort: 8081
+        env: 
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password
+        - name: ME_CONFIG_MONGODB_SERVER
+          value:
+```
+
+- mongo-configmap.yml
+```yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-configmap
+data:
+  database_url: mongodb-service
+```
+
+- mongo-express.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  labels:
+    app: mongo-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      containers:
+      - name: mongo-express
+        image: mongo-express
+        ports:
+          - containerPort: 8081
+        env: 
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password
+        - name: ME_CONFIG_MONGODB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-configmap
+              key: database_url
+```
+
+- Create ConfigMap
+```
+$ kubectl apply -f mongo-configmap.yml 
+configmap/mongodb-configmap created
+
+$ kubectl apply -f mongo-configmap.yml 
+configmap/mongodb-configmap created
+```
+
+- Check mongo-express
+```
+$ kubectl get pod
+NAME                                 READY   STATUS    RESTARTS   AGE
+mongo-express-78fcf796b8-pxdn5       1/1     Running   0          59s
+mongodb-deployment-8f6675bc5-mgcdd   1/1     Running   0          3h11m
+```
+
+- Logs mongo-express pod
+```
+$ kubectl logs mongo-express-78fcf796b8-pxdn5
+Waiting for mongodb-service:27017...
+Welcome to mongo-express
+------------------------
+
+
+Mongo Express server listening at http://0.0.0.0:8081
+Server is open to allow connections from anyone (0.0.0.0)
+basicAuth credentials are "admin:pass", it is recommended you change this in your config.js!
+Database connected
+Admin Database connected
+```
+
+---
+## Step 16 - Create External Service to expose Web
+
+- mongo-express.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  labels:
+    app: mongo-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-express
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      containers:
+      - name: mongo-express
+        image: mongo-express
+        ports:
+          - containerPort: 8081
+        env: 
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom: 
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password
+        - name: ME_CONFIG_MONGODB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-configmap
+              key: database_url
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: mongo-express-service
+spec:
+  selector: 
+    app: mongo-express
+  type: LoadBalancer
+  ports: 
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+      nodePort: 30000       # 30000-32767
+```
+
+- Apply Changes in Mongo-Express, add external service
+```
+$ kubectl apply -f mongo-express.yml 
+deployment.apps/mongo-express unchanged
+service/mongo-express-service created
+```
+
+- Check services
+```
+$ kubectl get services
+NAME                    TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+kubernetes              ClusterIP      10.96.0.1        <none>        443/TCP          38h
+mongo-express-service   LoadBalancer   10.110.202.208   <pending>     8081:30000/TCP   73s
+mongodb-service         ClusterIP      10.96.164.91     <none>        27017/TCP        43m
+```
+
+- Minikube Asign External IP Address ( that is <pending> up to now )
+```
+$ minikube service mongo-express-service
+|-----------|-----------------------|-------------|---------------------------|
+| NAMESPACE |         NAME          | TARGET PORT |            URL            |
+|-----------|-----------------------|-------------|---------------------------|
+| default   | mongo-express-service |        8081 | http://192.168.49.2:30000 |
+|-----------|-----------------------|-------------|---------------------------|
+🎉  Opening service default/mongo-express-service in default browser...
+Opening in existing browser session.
+```
 
