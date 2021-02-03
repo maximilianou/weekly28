@@ -1014,10 +1014,10 @@ service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   23h
 
 - Create the mongodb pod
 ```
-$ touch mongo-deployment.yml
+$ touch mongo.yml
 ```
 
-
+- mongo.yml - before Secret
 ```yml
 apiVersion: apps/v1
 kind: Deployment
@@ -1038,7 +1038,13 @@ spec:
       containers:
       - name: mongodb
         image: mongo
-
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: 
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: 
 ```
 
 https://hub.docker.com/_/mongo
@@ -1055,7 +1061,196 @@ $ kubectl get pod
 No resources found in default namespace.
 ```
 
+---
+## Step 13 - Secret - Create Secret environment variables
 
+```
+$ echo -n 'username' | base64
+dXNlcm5hbWU=
 
+$ echo -n 'password' | base64
+cGFzc3dvcmQ=
+```
+
+- mongo.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: 
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: 
+```
+- mongo-secret.yml
+```yml
+apiVersion: v1
+kind: Secret
+metadata: 
+  name: mongodb-secret
+type: Opaque
+data: 
+  mongo-root-username: dXNlcm5hbWU=
+  mongo-root-password: cGFzc3dvcmQ=
+```
+
+- Generate Secret
+```
+$ kubectl apply -f mongo-secret.yml 
+secret/mongodb-secret created
+```
+
+- Check Generated Secret
+```
+$ kubectl get secret
+NAME                  TYPE                                  DATA   AGE
+default-token-cvgxx   kubernetes.io/service-account-token   3      34h
+mongodb-secret        Opaque                                2      52s
+```
+
+- Now Reference now in Deployment file
+- mongo.yml
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username 
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password 
+```
+
+- Create Deployment Instance with secret
+```
+$ kubectl apply -f mongo.yml 
+deployment.apps/mongodb-deployment created
+```
+
+- Check the result
+```
+$ kubectl get all
+NAME                                     READY   STATUS    RESTARTS   AGE
+pod/mongodb-deployment-8f6675bc5-mgcdd   1/1     Running   0          89s
+
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   34h
+
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/mongodb-deployment   1/1     1            1           89s
+
+NAME                                           DESIRED   CURRENT   READY   AGE
+replicaset.apps/mongodb-deployment-8f6675bc5   1         1         1       89s
+```
+
+- Check pod
+```
+$ kubectl get pod
+NAME                                 READY   STATUS    RESTARTS   AGE
+mongodb-deployment-8f6675bc5-mgcdd   1/1     Running   0          2m46s
+```
+
+- Check pod status info
+```
+$ kubectl describe pod mongodb-deployment-8f6675bc5-mgcdd
+Name:         mongodb-deployment-8f6675bc5-mgcdd
+Namespace:    default
+Priority:     0
+Node:         minikube/192.168.49.2
+Start Time:   Wed, 03 Feb 2021 03:39:28 -0300
+Labels:       app=mongodb
+              pod-template-hash=8f6675bc5
+Annotations:  <none>
+Status:       Running
+IP:           172.17.0.5
+IPs:
+  IP:           172.17.0.5
+Controlled By:  ReplicaSet/mongodb-deployment-8f6675bc5
+Containers:
+  mongodb:
+    Container ID:   docker://5382513c416f9faa8e028a9d26c04dd1d816238f99e23f2440aca1cccdcdddf2
+    Image:          mongo
+    Image ID:       docker-pullable://mongo@sha256:88e0308671a06d4ee7da41f87944ba66355b4ee3d57d57caf92f5e1938736abd
+    Port:           27017/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Wed, 03 Feb 2021 03:39:32 -0300
+    Ready:          True
+    Restart Count:  0
+    Environment:
+      MONGO_INITDB_ROOT_USERNAME:  <set to the key 'mongo-root-username' in secret 'mongodb-secret'>  Optional: false
+      MONGO_INITDB_ROOT_PASSWORD:  <set to the key 'mongo-root-password' in secret 'mongodb-secret'>  Optional: false
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-cvgxx (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             True 
+  ContainersReady   True 
+  PodScheduled      True 
+Volumes:
+  default-token-cvgxx:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-cvgxx
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                 node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  5m46s  default-scheduler  Successfully assigned default/mongodb-deployment-8f6675bc5-mgcdd to minikube
+  Normal  Pulling    5m45s  kubelet            Pulling image "mongo"
+  Normal  Pulled     5m42s  kubelet            Successfully pulled image "mongo" in 2.664640945s
+  Normal  Created    5m42s  kubelet            Created container mongodb
+  Normal  Started    5m42s  kubelet            Started container mongodb
+```
+
+---
+## Step 14 - Create MongoDB Internal Service
 
 
