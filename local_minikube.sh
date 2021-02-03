@@ -1,0 +1,2 @@
+alias kubectl='minikube kubectl -- $@ '
+

@@ -1017,3 +1017,45 @@ service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   23h
 $ touch mongo-deployment.yml
 ```
 
+
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  labels:
+    app: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo
+
+```
+
+https://hub.docker.com/_/mongo
+
+- 27017
+
+```
+$ cat local_minikube.sh 
+alias kubectl='minikube kubectl -- $@ '
+
+$ . ./local_minikube.sh 
+
+$ kubectl get pod
+No resources found in default namespace.
+```
+
+
+
+
+
