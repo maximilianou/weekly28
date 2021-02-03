@@ -1561,3 +1561,219 @@ $ minikube service mongo-express-service
 Opening in existing browser session.
 ```
 
+---
+## Step 17 - Namespaces
+- Namespaces default
+```
+$ kubectl get namespaces
+NAME                   STATUS   AGE
+default                Active   42h
+kube-node-lease        Active   42h
+kube-public            Active   42h
+kube-system            Active   42h
+kubernetes-dashboard   Active   41h
+```
+
+- Namespace *kube-system*, you do not modify this.
+
+- Namespace *kube-public*
+```
+$ kubectl cluster-info
+Kubernetes control plane is running at https://192.168.49.2:8443
+KubeDNS is running at https://192.168.49.2:8443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+```
+
+- Namespace *kube-node-lease*
+Heartbeats of nodes
+
+- Namespace *default*
+If you haven't created a namespace.
+
+---
+## Step 18 - Namespaces Managment
+
+- Create Namespace
+```
+$ kubectl create namespace my-namespace
+namespace/my-namespace created
+```
+
+- Why Namespaces?
+- Database Namespace
+- Monitoring Namespace
+- Elastic Stack Namespace
+- Nginx-Ingress Namespace
+- Team A & B Namespaces ( skip app names and config *collision* ) 
+- *Staging & Development* Namespaces Environment can use the same Nginx-Ingress
+- *Blue Green Deployment* Namespaces, Resource Sharing
+- Project A & Project B Namespaces
+
+- Out of Namespaces Resources: *Volumes* *Node*
+
+---
+## Step 19 - Namespace Create
+
+- mysql-configmap.yml
+```yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-configmap
+data:
+  db_url: mysql-service.database
+```
+
+- Create mysql configmap ( namespace: default )
+```
+$ kubectl apply -f mysql-configmap.yml 
+configmap/mysql-configmap created
+```
+
+```
+$ kubectl get configmap
+NAME                DATA   AGE
+kube-root-ca.crt    1      46h
+mongodb-configmap   1      8h
+mysql-configmap     1      119s
+```
+
+```
+$ kubectl get configmap -n default
+NAME                DATA   AGE
+kube-root-ca.crt    1      46h
+mongodb-configmap   1      8h
+mysql-configmap     1      119s
+```
+
+- Check ConfigMap namespace: default
+```yml
+$ kubectl get configmap -o yaml
+apiVersion: v1
+items:
+- apiVersion: v1
+  data:
+    ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      MIIDBjCCAe6gAwIBAgIBATANBgkqhkiG9w0BAQsFADAVMRMwEQYDVQQDEwptaW5p
+      a3ViZUNBMB4XDTIxMDEzMTE5NTYzMloXDTMxMDEzMDE5NTYzMlowFTETMBEGA1UE
+      AxMKbWluaWt1YmVDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBANBZ
+      BVNt+bPgPPJ72qMPCO1UJNN/O+UskP2gcSDs7nbphGRwC96qH9I9TxkwH9Bu6TiY
+      wcnl5NuUcknjYPeQrQ0Q/1LfBl03lvE0Y7lX/3U7U6M4BCN61aFZbV9GXYwzp7Uy
+      h4bvgaIDvcxpPMjyKl/QWu8MwVGjojnRG2Lk9aRMwYnrpmQoufLFlg2nwhEF27go
+      G8rH78rGYajDp3RniRT3Gzq7NFxPQGgPtC+1USYmUTjbbf2L3TCxyrodXznb3TFp
+      QxsaU/NWP1Ftg51qEgKbWDsJS4L5UcdjarNz1Rccyh2q9d09QyxzSLOZuVm98+pK
+      r2Lsm/1ZH9G+NQIwFt0CAwEAAaNhMF8wDgYDVR0PAQH/BAQDAgKkMB0GA1UdJQQW
+      MBQGCCsGAQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+      BBQqDGiZn2bQ2GX7/O4SN24fB/btCTANBgkqhkiG9w0BAQsFAAOCAQEAvexVQujB
+      McQw3+YHsRWNVXt0R72mNaExaFVGgb8tY6aAcn6oGfQ6BlsQHjvOtWP2PUrcoc/p
+      dZDt4ABiPHlKzn3qD0UufQ5qqu591QVUjqnp6B6CfDCBQNYLyuv1hPOBDFXs+G7T
+      zKpbNfAhK3o5GlJonMO82dIKNYn+OUodbyIp5bkhEsSra6oLyvZGem/Ms4Rol6U6
+      SW0GeOvkByY+gHQPLrmEaWmpcNDMdp0kECEc9a2kk5qxuOYX7Za93gMihvRgD9rW
+      fnoIx51/90AozD3LLxp5sSpI8anEoD+cjXckuqVzY7iESSAzKdY87Qf9N4URQjce
+      0S8ZRnJnsZZiBA==
+      -----END CERTIFICATE-----
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2021-02-01T19:57:15Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:ca.crt: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2021-02-01T19:57:15Z"
+    name: kube-root-ca.crt
+    namespace: default
+    resourceVersion: "387"
+    uid: 72453c86-cd5b-4afa-803e-ec399320c93d
+- apiVersion: v1
+  data:
+    database_url: mongodb-service
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"database_url":"mongodb-service"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"mongodb-configmap","namespace":"default"}}
+    creationTimestamp: "2021-02-03T09:49:15Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:database_url: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:kubectl.kubernetes.io/last-applied-configuration: {}
+      manager: kubectl-client-side-apply
+      operation: Update
+      time: "2021-02-03T09:49:15Z"
+    name: mongodb-configmap
+    namespace: default
+    resourceVersion: "69094"
+    uid: 17262018-6306-4d7f-85d5-3fa6755cb137
+- apiVersion: v1
+  data:
+    db_url: mysql-service.database
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"db_url":"mysql-service.database"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"mysql-configmap","namespace":"default"}}
+    creationTimestamp: "2021-02-03T18:30:50Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:db_url: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:kubectl.kubernetes.io/last-applied-configuration: {}
+      manager: kubectl-client-side-apply
+      operation: Update
+      time: "2021-02-03T18:30:50Z"
+    name: mysql-configmap
+    namespace: default
+    resourceVersion: "84170"
+    uid: 32e166ed-cabb-494e-bec2-2769bc8b1993
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+```
+- Create configMap in a namespace over command line
+```
+$ kubectl apply -f mysql-configmap.yml --namespace=my-namespace
+configmap/mysql-configmap created
+```
+
+- mysql-configmap.yml
+```yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-configmap
+  namespace: my-namespace
+data:
+  db_url: mysql-service.database
+```
+- Check namespace my-namespace
+```
+$ kubectl get all -n my-namespace
+No resources found in my-namespace namespace.
+
+$ kubectl get configmap -n my-namespace
+NAME               DATA   AGE
+kube-root-ca.crt   1      4h31m
+mysql-configmap    1      3m15s
+
+```
