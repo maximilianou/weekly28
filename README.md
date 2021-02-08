@@ -2065,3 +2065,91 @@ ff02::2 ip6-allrouters
 http://dashboard.com/
 ```
 
+```
+$ kubectl describe ingress ingress-dashboard -n kubernetes-dashboard
+Name:             ingress-dashboard
+Namespace:        kubernetes-dashboard
+Address:          192.168.49.2
+Default backend:  default-http-backend:80 (<error: endpoints "default-http-backend" not found>)
+Rules:
+  Host           Path  Backends
+  ----           ----  --------
+  dashboard.com  
+                 /   kubernetes-dashboard:80 (172.17.0.2:9090)
+Annotations:     nginx.ingress.kubernetes.io/rewrite-target: /
+Events:
+  Type    Reason  Age                From                      Message
+  ----    ------  ----               ----                      -------
+  Normal  CREATE  41m                nginx-ingress-controller  Ingress kubernetes-dashboard/ingress-dashboard
+  Normal  UPDATE  16m (x2 over 40m)  nginx-ingress-controller  Ingress kubernetes-dashboard/ingress-dashboard
+```
+
+---
+## Step 24 - Ingress - Control Error Messages
+
+- ingress-messages.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: default-http-backend
+spec:
+  selector:
+    app: default-http-backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+```
+
+---
+## Step 24 - Ingress - Multiple Path Same Host
+
+- ingress-multipath.yml
+```yml
+apiVersion: v1
+kind: Ingress
+metadata:
+  name: simple-fanout-exemple
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+# tls
+#    - host:
+#      - myapp:
+#      secretName: myapp-secret-tls
+  rules:
+#  - host: analytics.myapp.com
+  - host: myapp.com
+    http:
+      paths:
+      - path: /analytics
+        backend:
+          service:
+            serviceName: analytics-service
+            servicePort: 3000
+#  - host: shopping.myapp.com
+      - path: /shopping
+        backend:
+          serviceName: shoppint-service
+          servicePort: 8080
+
+####################
+#
+#apiVersion: v1
+#kind: Secret
+#metadata: 
+#  name: myapp-secret-tls
+#  namespace: default
+#data: 
+#  tls.crt: base64 encoded cert
+#  tls.key: base64 encoded key
+#type: kubernetes.io/tls
+#
+##############################
+
+```
+
+---
+## Step 25 - 
+
