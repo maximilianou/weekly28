@@ -1775,5 +1775,293 @@ $ kubectl get configmap -n my-namespace
 NAME               DATA   AGE
 kube-root-ca.crt   1      4h31m
 mysql-configmap    1      3m15s
+```
+
+---
+## Step 20 - Namespace Tools
+
+- Search Tool kubens in kubectx
+```
+# apt search kubectx
+Sorting... Done
+Full Text Search... Done
+kubectx/stable 0.6.2-1 all
+  Fast way to switch between clusters and namespaces in kubectl
+```
+
+- Install kubectx with kubens
+```
+# apt install kubectx
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following NEW packages will be installed:
+  kubectx
+0 upgraded, 1 newly installed, 0 to remove and 6 not upgraded.
+Need to get 5,256 B of archives.
+After this operation, 41.0 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian buster/main amd64 kubectx all 0.6.2-1 [5,256 B]
+Fetched 5,256 B in 1s (8,373 B/s)  
+Selecting previously unselected package kubectx.
+(Reading database ... 266123 files and directories currently installed.)
+Preparing to unpack .../kubectx_0.6.2-1_all.deb ...
+Unpacking kubectx (0.6.2-1) ...
+Setting up kubectx (0.6.2-1) ...
+```
+
+- install kubens needs kubectl
+```
+# curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/"
+
+# install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 ```
+### Minikube: Start Kubernetes in the Container
+```
+$ minikube start
+😄  minikube v1.17.1 on Debian 10.7
+✨  Using the docker driver based on existing profile
+👍  Starting control plane node minikube in cluster minikube
+🔄  Restarting existing docker container for "minikube" ...
+🐳  Preparing Kubernetes v1.20.2 on Docker 20.10.2 ...
+🔎  Verifying Kubernetes components...
+🌟  Enabled addons: storage-provisioner, default-storageclass, dashboard
+🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
+
+$ kubens
+default
+kube-node-lease
+kube-public
+kube-system
+kubernetes-dashboard
+my-namespace
+
+```
+
+```
+$ kubens
+default
+kube-node-lease
+kube-public
+kube-system
+kubernetes-dashboard
+my-namespace
+
+$ minikube status
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+timeToStop: Nonexistent
+```
+- Namespace - Chance Current Namespace
+```
+$ kubens my-namespace
+Context "minikube" modified.
+Active namespace is "my-namespace".
+
+```
+---
+## Step 21 - Ingress
+
+- Ingress
+
+- ingress.yml
+```yml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+  labels:
+      name: myapp-ingress
+spec:
+  rules:
+  - host: myapp.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            serviceName: myapp-internal-service
+            servicePort: 8080
+```
+- ingress-service-internal.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-internal-service
+spec:
+  selector:
+    app: myapp
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+```
+- ingress-service-external.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-external-service
+spec:
+  selector:
+    app: myapp
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    nodePort: 35010
+```
+
+
+---
+## Step 22 - Ingress - Implementation - Ingress Controller
+
+### Ingress Controller Pod
+
+- Entrypoint to the Cluster
+
+- Cloud Load Balancer ( out of your k8s cluster ) ->
+- Ingress Controler Pod ( inside your k8s cluster ) ->
+- my-app-ingress ->
+- my-app-service ->
+- my-app-pod
+
+- External Proxy Server ( take the role of the Role Load Balancer )
+
+### Minikube Local Implementation ( laptop )
+
+---
+## Step 23 - Ingress - Install Ingress Controller in Minikube
+
+- Installing Minikube Ingress Controller addon
+```
+$ minikube addons enable ingress
+🔎  Verifying ingress addon...
+🌟  The 'ingress' addon is enabled
+```
+
+```
+$ kubectl get pod -n kube-system
+NAME                                        READY   STATUS      RESTARTS   AGE
+coredns-74ff55c5b-fjb5f                     1/1     Running     2          4d13h
+etcd-minikube                               1/1     Running     2          4d13h
+ingress-nginx-admission-create-qj7v4        0/1     Completed   0          3m8s
+ingress-nginx-admission-patch-r58t5         0/1     Completed   0          3m8s
+ingress-nginx-controller-558664778f-fx46g   1/1     Running     0          3m8s
+kube-apiserver-minikube                     1/1     Running     2          4d13h
+kube-controller-manager-minikube            1/1     Running     2          4d13h
+kube-proxy-lddsm                            1/1     Running     2          4d13h
+kube-scheduler-minikube                     1/1     Running     2          4d13h
+storage-provisioner                         1/1     Running     4          4d13h
+```
+
+- Local k8s Cluster we have:
+```
+$ kubectl get ns
+NAME                   STATUS   AGE
+default                Active   4d13h
+kube-node-lease        Active   4d13h
+kube-public            Active   4d13h
+kube-system            Active   4d13h
+kubernetes-dashboard   Active   4d13h
+my-namespace           Active   2d19h
+```
+
+- k8s Dashboard
+```
+$ kubectl get all -n kubernetes-dashboard
+NAME                                            READY   STATUS    RESTARTS   AGE
+pod/dashboard-metrics-scraper-c95fcf479-vqxrn   1/1     Running   2          4d13h
+pod/kubernetes-dashboard-6cff4c7c4f-qwxvj       1/1     Running   4          4d13h
+
+NAME                                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/dashboard-metrics-scraper   ClusterIP   10.106.21.143   <none>        8000/TCP   4d13h
+service/kubernetes-dashboard        ClusterIP   10.111.42.114   <none>        80/TCP     4d13h
+
+NAME                                        READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/dashboard-metrics-scraper   1/1     1            1           4d13h
+deployment.apps/kubernetes-dashboard        1/1     1            1           4d13h
+
+NAME                                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/dashboard-metrics-scraper-c95fcf479   1         1         1       4d13h
+replicaset.apps/kubernetes-dashboard-6cff4c7c4f       1         1         1       4d13h
+```
+
+---
+## Step 23 - Ingress - Implementation - Ingress Controller
+
+- When this error happend, check clearly how the file is wirtten.
+```
+$ kubectl apply -f ingress-dashboard.yml 
+error: error validating "ingress-dashboard.yml": error validating data: [ValidationError(Ingress.spec.rules[0].http.paths[0].backend): unknown field "serviceName" in io.k8s.api.networking.v1.IngressBackend, ValidationError(Ingress.spec.rules[0].http.paths[0].backend): unknown field "servicePort" in io.k8s.api.networking.v1.IngressBackend]; if you choose to ignore these errors, turn validation off with --validate=false
+```
+
+- ingress-dashboard.yml
+```yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-dashboard
+  namespace: kubernetes-dashboard
+  annotations: 
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: dashboard.com
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: kubernetes-dashboard
+              port: 
+                number: 80
+```
+
+```
+$ kubectl apply -f ingress-dashboard.yml 
+ingress.networking.k8s.io/ingress-dashboard configured
+```
+
+- Check, in the rigth namespase
+```
+$ kubectl get ingress 
+No resources found in my-namespace namespace.
+
+$ kubectl get ingress -n kubernetes-dashboard
+NAME                CLASS    HOSTS           ADDRESS        PORTS   AGE
+ingress-dashboard   <none>   dashboard.com   192.168.49.2   80      29m
+```
+
+```
+$ kubectl get ingress -n kubernetes-dashboard --watch
+NAME                CLASS    HOSTS           ADDRESS        PORTS   AGE
+ingress-dashboard   <none>   dashboard.com   192.168.49.2   80      31m
+```
+
+- /etc/hosts
+```
+127.0.0.1       localhost
+127.0.1.1       instrument
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+192.168.49.2     dashboard.com
+```
+
+- Browser: 
+```
+http://dashboard.com/
+```
+
