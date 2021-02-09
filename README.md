@@ -2298,3 +2298,110 @@ spec:
       storage: 100Gi
   storageClassName: srotage-class-name
 ```
+
+---
+## Step 28 - Kubernetes Stateful StatefulSet
+
+---
+## Step 29 - Kubernetes Stateful StatefulSet
+
+- ClusterIP Services
+- Headless Services
+- NodePort Serivces
+- LoadBalander Services
+
+### ClusterIP Services
+
+- Default Type of services
+- ClusterIP ip:10.128.8.64:32000
+ - Node 1
+  - Pod
+   - microservice app deployed
+   - side-car container ( contains logs of the microservices )
+   - Pod ip address 10.2.2.5
+   - pod ports 3000, 9000
+ - Node 2
+  - Pod
+   - microservice app deployed
+   - side-car container ( contains logs of the microservices )
+   - Pod ip address 10.2.1.4
+   - pod ports 3000, 9000
+
+```
+kubectl get pod -o wide
+```
+- selector -> make possible ClusterIP to know about Node 1 Node 2
+
+
+### Headless Services
+
+- headless service .yml
+```yml
+apiVersion: v1
+kind: Service
+metadata: 
+  name: mongo-service-headless
+spec:
+  clusterIP: none # Here is the Headless Definition " none "
+  selector:
+    app: mongodb
+  ports: 
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+```
+
+---
+## Step 30 - Kubernetes Service type attribute
+
+- ClusterIP
+- NodePort
+- LoadBalancer
+
+- clusterIP.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: ClusterIP # Default
+```
+
+- nodeport.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata: 
+  name: my-service-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: microservice-one
+  ports:
+    - protocol: TCP
+      port: 3200
+      targetPort: 3000
+      nodePort: 32000 # range 30000 - 32767
+```
+
+- loadbalancer.yml
+```yml
+apiVersion: v1
+kind: Service
+metadata: 
+  name: my-service
+spec: 
+  type: LoadBalancer # Using Cloud Implementation of Provider, AWS GCloud Linode Azure 
+  selector:
+    app: microservice-one
+  ports:
+    - protocol: TCP
+      port: 3200
+      targetPort: 3000
+      nodePort: 30010
+```
+
+
+
+
