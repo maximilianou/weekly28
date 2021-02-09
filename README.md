@@ -2151,5 +2151,150 @@ spec:
 ```
 
 ---
-## Step 25 - 
+## Step 25 - Helm - Concepts
 
+- Package Manager for Kubernetes
+  packaging YAML files in repositories
+
+### Helm Charts
+
+- Bundle of YAML files
+- Create your own Helm Charts with Helm
+- Push them to Helm Repository
+- Or Download and use existing ones
+
+```
+helm search <keyword>
+```
+
+Or Helm Hub
+
+```
+  mychart/
+    Chart.yml
+    values.yml
+    charts/
+    templates/
+```
+
+```
+helm install <chartname>
+```
+
+- values.yml ( default values )
+```yml
+imageName: myapp
+port: 8080
+version: 1.0.0
+```
+
+- my-values.yml ( override values )
+```yml
+version: 2.0.0
+```
+
+```
+helm install --values=my-values.yml <chartname>
+```
+
+- result ( .Values object )
+```yml
+imageName: myapp
+port: 8080
+version: 2.0.0
+```
+
+- command line - other way
+```
+helm install --set version=2.0.0 
+```
+
+---
+## Step 26 - Helm - Release Managment
+
+```
+helm install <chartname>
+helm update <chartname>
+helm rollback <chartname>
+```
+
+---
+## Step 27 - Kubernetes Volumes Explained
+
+- Persistent Volume
+- Persistent Volume Claim
+- Storage Class
+
+- Storage doesn't depend on Pod Lifecycle
+- Storage must be available on all nodes
+- Storage needs to survive even if cluster crashes
+
+### Persistent Volume
+
+```yml
+apiVersion: v1
+kind: PersistentVolume
+metadata: 
+  name: pv-name
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: slow
+  mountOptions:
+    - hard
+    - nfservs=4.0
+  nfs:
+    path: /dir/path/on/nfs/server
+    server: nfs-server-ip-address
+```
+
+### Persistent Volume Claim component
+
+```yml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata: 
+  name: pvc-name
+spec:
+  storageClassName: manual
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resurces:
+    requests:
+      storage: 10Gi
+```
+
+### Storage Class
+
+- storage-class.yml
+```yml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: storage-class-name
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: io1
+  iopsPerGB: "10"
+  fsType: ext4
+```
+
+- pvc-config.yml
+```yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mypvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: srotage-class-name
+```
