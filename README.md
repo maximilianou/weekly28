@@ -1,5 +1,12 @@
 # weekly28
 
+---
+- TOC
+---
+1. **Kubernetes Learning**
+1. **Kubernetes Local env minikube**
+1. **Kubernetes Pod, Deployment, Services**
+---
 
 **Reference:**
 https://www.youtube.com/watch?v=X48VuDVv0do
